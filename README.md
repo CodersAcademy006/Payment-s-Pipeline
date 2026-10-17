@@ -20,14 +20,23 @@ A Flask payment processing backend: user auth, payments through a real gateway, 
 | Audit | Append-only audit log on every state change | #28 |
 | Ops | Tests on the money paths, pinned deps, migrations, logs and metrics | #12 #15 #30 #32 |
 
-The modules under `Payment's Pipeline/Payment's Pipeline/backend/` (blockchain, IoT, quantum crypto and others) are not part of the MVP and will be removed (#10).
+Earlier scaffold modules (blockchain, IoT, quantum crypto and others) were removed because they are outside the MVP. They remain in git history before the restructure commit.
 
 ## Layout
 
 ```
-Payment's Pipeline/
-  payment_pipeline/        Flask app (blueprints, models, tests)
-  Payment's Pipeline/      generated scaffold; database/ models are being merged into the app
+backend/
+  app/          Flask app factory
+  api/          blueprints: auth, payment, notifications
+  models/       SQLAlchemy models: user, transaction, audit_log
+  schemas/      request/response validation (pydantic)
+  services/     payment gateway, idempotency and rate-limit logic
+  tests/
+  config.py
+  wsgi.py
+frontend/
+  public/       index.html
+  src/          React components, store, constants
 .github/workflows/ci.yml   lint for bug classes + pytest
 ```
 
@@ -39,7 +48,7 @@ CI runs on every push to `main` and on every pull request. To run the same check
 python -m venv .venv && source .venv/bin/activate
 pip install ruff flask flask-sqlalchemy pytest
 ruff check --select E9,F63,F7,F82 .
-cd "Payment's Pipeline/payment_pipeline" && python -m pytest -q
+python -m pytest -q
 ```
 
 ## License

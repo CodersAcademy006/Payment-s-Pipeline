@@ -1,0 +1,11 @@
+flask
+flask-sqlalchemy
+sqlalchemy
+passlib[bcrypt]
+pydantic[email]
+pyotp
+structlog
+tenacity
+prometheus-client
+sentry-sdk
+pytest

@@ -1,1 +1,0 @@
-console.log('Payment Pipeline App Loaded');
