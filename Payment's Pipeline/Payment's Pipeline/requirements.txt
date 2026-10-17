@@ -1,5 +1,0 @@
-flask
-requests
-sqlalchemy
-pytest
-hyperledger-fabric-sdk-py
