@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -23,13 +23,52 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Pinned file comes with #15; requirements.txt lists packages that do not install (#21).
+      - name: Install ruff
+        run: pip install "$(grep '^ruff==' requirements-dev.txt)"
+
+      - name: Python lint
+        run: ruff check --output-format github .
+
+      - name: Python format
+        run: ruff format --check --diff .
+
+      - name: JS, HTML, Markdown, YAML format
+        run: npx --yes prettier@3.6.2 --check .
+
+      # Every tracked file, every line: trailing spaces, CRLF, space before tab, blank line at EOF.
+      - name: Whitespace
+        run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
       - name: Install
-        run: pip install ruff flask flask-sqlalchemy pytest
+        run: pip install -r requirements-dev.txt
 
-      # Bug classes only: syntax errors, undefined names, invalid comparisons. No style rules.
-      - name: Lint
-        run: ruff check --select E9,F63,F7,F82 --output-format github .
+      - name: Test on SQLite
+        run: python -m pytest
 
-      - name: Test
-        run: python -m pytest -q
+      - name: Test on Postgres
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+        run: python -m pytest

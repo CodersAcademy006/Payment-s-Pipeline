@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { 
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import {
   Box,
   Typography,
   Container,
@@ -27,55 +27,55 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  DialogTitle
-} from '@mui/material';
-import { 
-  Search, 
-  FilterList, 
-  Refresh, 
+  DialogTitle,
+} from "@mui/material";
+import {
+  Search,
+  FilterList,
+  Refresh,
   CloudDownload,
   Visibility,
   Block,
-  MonetizationOn
-} from '@mui/icons-material';
-import { makeStyles } from '@mui/styles';
-import { format, parseISO } from 'date-fns';
-import jwtDecode from 'jwt-decode';
-import { debounce } from 'lodash';
-import { TRANSACTION_STATUS, PAYMENT_METHODS } from '../constants';
-import Notification from './Notification';
+  MonetizationOn,
+} from "@mui/icons-material";
+import { makeStyles } from "@mui/styles";
+import { format, parseISO } from "date-fns";
+import jwtDecode from "jwt-decode";
+import { debounce } from "lodash";
+import { TRANSACTION_STATUS, PAYMENT_METHODS } from "../constants";
+import Notification from "./Notification";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     padding: theme.spacing(4),
-    backgroundColor: '#f9fafb',
-    minHeight: '100vh'
+    backgroundColor: "#f9fafb",
+    minHeight: "100vh",
   },
   filterSection: {
     marginBottom: theme.spacing(4),
     padding: theme.spacing(3),
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    boxShadow: '0px 4px 24px rgba(0, 0, 0, 0.08)'
+    backgroundColor: "#ffffff",
+    borderRadius: "12px",
+    boxShadow: "0px 4px 24px rgba(0, 0, 0, 0.08)",
   },
   tableHeader: {
     backgroundColor: theme.palette.primary.main,
-    '& .MuiTableCell-head': {
-      color: '#ffffff',
-      fontWeight: 600
-    }
+    "& .MuiTableCell-head": {
+      color: "#ffffff",
+      fontWeight: 600,
+    },
   },
   actionButton: {
     marginLeft: theme.spacing(1),
-    transition: 'transform 0.2s',
-    '&:hover': {
-      transform: 'scale(1.1)'
-    }
+    transition: "transform 0.2s",
+    "&:hover": {
+      transform: "scale(1.1)",
+    },
   },
   loadingContainer: {
     padding: theme.spacing(4),
-    textAlign: 'center'
-  }
+    textAlign: "center",
+  },
 }));
 
 const AdminPanel = () => {
@@ -88,58 +88,62 @@ const AdminPanel = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    paymentMethod: '',
-    startDate: '',
-    endDate: '',
-    minAmount: '',
-    maxAmount: ''
+    search: "",
+    status: "",
+    paymentMethod: "",
+    startDate: "",
+    endDate: "",
+    minAmount: "",
+    maxAmount: "",
   });
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "info",
+  });
 
   const validateAdminAccess = useCallback(() => {
-    const token = localStorage.getItem('paymentPipelineToken');
+    const token = localStorage.getItem("paymentPipelineToken");
     if (!token) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
 
     try {
       const decoded = jwtDecode(token);
-      if (decoded.role !== 'admin') {
-        navigate('/unauthorized');
+      if (decoded.role !== "admin") {
+        navigate("/unauthorized");
       }
     } catch (error) {
-      localStorage.removeItem('paymentPipelineToken');
-      navigate('/login');
+      localStorage.removeItem("paymentPipelineToken");
+      navigate("/login");
     }
   }, [navigate]);
 
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/admin/transactions', {
+      const response = await axios.get("/api/admin/transactions", {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('paymentPipelineToken')}`
+          Authorization: `Bearer ${localStorage.getItem("paymentPipelineToken")}`,
         },
         params: {
           page: page + 1,
           pageSize: rowsPerPage,
-          ...filters
-        }
+          ...filters,
+        },
       });
 
       setTransactions(response.data.transactions);
       setTotalCount(response.data.totalCount);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch transactions');
+      setError(err.response?.data?.message || "Failed to fetch transactions");
       setNotification({
         open: true,
-        message: err.response?.data?.message || 'Failed to fetch transactions',
-        severity: 'error'
+        message: err.response?.data?.message || "Failed to fetch transactions",
+        severity: "error",
       });
     } finally {
       setLoading(false);
@@ -152,82 +156,86 @@ const AdminPanel = () => {
   }, [validateAdminAccess, fetchTransactions]);
 
   const handleFilterChange = (name, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  const handleSearchDebounced = debounce(value => {
-    handleFilterChange('search', value);
+  const handleSearchDebounced = debounce((value) => {
+    handleFilterChange("search", value);
   }, 500);
 
   const handleExportData = async () => {
     try {
-      const response = await axios.get('/api/admin/transactions/export', {
+      const response = await axios.get("/api/admin/transactions/export", {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('paymentPipelineToken')}`,
-          'Content-Type': 'blob'
+          Authorization: `Bearer ${localStorage.getItem("paymentPipelineToken")}`,
+          "Content-Type": "blob",
         },
-        responseType: 'blob'
+        responseType: "blob",
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', `transactions_${Date.now()}.csv`);
+      link.setAttribute("download", `transactions_${Date.now()}.csv`);
       document.body.appendChild(link);
       link.click();
     } catch (err) {
       setNotification({
         open: true,
-        message: err.response?.data?.message || 'Export failed',
-        severity: 'error'
+        message: err.response?.data?.message || "Export failed",
+        severity: "error",
       });
     }
   };
 
   const handleTransactionAction = async (transactionId, action) => {
     try {
-      await axios.post(`/api/admin/transactions/${transactionId}/${action}`, {}, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('paymentPipelineToken')}`
-        }
-      });
-      
+      await axios.post(
+        `/api/admin/transactions/${transactionId}/${action}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("paymentPipelineToken")}`,
+          },
+        },
+      );
+
       setNotification({
         open: true,
         message: `Transaction ${action} successful`,
-        severity: 'success'
+        severity: "success",
       });
       fetchTransactions();
     } catch (err) {
       setNotification({
         open: true,
         message: err.response?.data?.message || `Action failed`,
-        severity: 'error'
+        severity: "error",
       });
     }
   };
 
   const renderStatusBadge = (status) => {
     const statusConfig = {
-      [TRANSACTION_STATUS.COMPLETED]: { color: '#4caf50', label: 'Completed' },
-      [TRANSACTION_STATUS.FAILED]: { color: '#f44336', label: 'Failed' },
-      [TRANSACTION_STATUS.PENDING]: { color: '#ff9800', label: 'Pending' },
-      [TRANSACTION_STATUS.REFUNDED]: { color: '#9c27b0', label: 'Refunded' },
-      [TRANSACTION_STATUS.FLAGGED]: { color: '#e91e63', label: 'Flagged' }
+      [TRANSACTION_STATUS.COMPLETED]: { color: "#4caf50", label: "Completed" },
+      [TRANSACTION_STATUS.FAILED]: { color: "#f44336", label: "Failed" },
+      [TRANSACTION_STATUS.PENDING]: { color: "#ff9800", label: "Pending" },
+      [TRANSACTION_STATUS.REFUNDED]: { color: "#9c27b0", label: "Refunded" },
+      [TRANSACTION_STATUS.FLAGGED]: { color: "#e91e63", label: "Flagged" },
     };
 
     return (
       <Box
         sx={{
-          backgroundColor: statusConfig[status]?.color + '20',
+          backgroundColor: statusConfig[status]?.color + "20",
           color: statusConfig[status]?.color,
-          padding: '4px 12px',
-          borderRadius: '20px',
-          display: 'inline-block',
-          fontWeight: 500
+          padding: "4px 12px",
+          borderRadius: "20px",
+          display: "inline-block",
+          fontWeight: 500,
         }}
       >
         {statusConfig[status]?.label}
@@ -242,7 +250,11 @@ const AdminPanel = () => {
           <Typography variant="h4" component="h1" gutterBottom>
             Transaction Management
           </Typography>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
             <Button
               variant="contained"
               color="primary"
@@ -272,7 +284,7 @@ const AdminPanel = () => {
                 label="Search Transactions"
                 variant="outlined"
                 InputProps={{
-                  startAdornment: <Search />
+                  startAdornment: <Search />,
                 }}
                 onChange={(e) => handleSearchDebounced(e.target.value)}
               />
@@ -282,11 +294,11 @@ const AdminPanel = () => {
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  onChange={(e) => handleFilterChange("status", e.target.value)}
                   label="Status"
                 >
                   <MenuItem value="">All</MenuItem>
-                  {Object.values(TRANSACTION_STATUS).map(status => (
+                  {Object.values(TRANSACTION_STATUS).map((status) => (
                     <MenuItem key={status} value={status}>
                       {status}
                     </MenuItem>
@@ -299,11 +311,13 @@ const AdminPanel = () => {
                 <InputLabel>Payment Method</InputLabel>
                 <Select
                   value={filters.paymentMethod}
-                  onChange={(e) => handleFilterChange('paymentMethod', e.target.value)}
+                  onChange={(e) =>
+                    handleFilterChange("paymentMethod", e.target.value)
+                  }
                   label="Payment Method"
                 >
                   <MenuItem value="">All</MenuItem>
-                  {Object.values(PAYMENT_METHODS).map(method => (
+                  {Object.values(PAYMENT_METHODS).map((method) => (
                     <MenuItem key={method} value={method}>
                       {method}
                     </MenuItem>
@@ -340,19 +354,21 @@ const AdminPanel = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {transactions.map(transaction => (
+                  {transactions.map((transaction) => (
                     <TableRow key={transaction.id}>
                       <TableCell>{transaction.shortId}</TableCell>
                       <TableCell>
-                        {new Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: transaction.currency
+                        {new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: transaction.currency,
                         }).format(transaction.amount)}
                       </TableCell>
-                      <TableCell>{renderStatusBadge(transaction.status)}</TableCell>
+                      <TableCell>
+                        {renderStatusBadge(transaction.status)}
+                      </TableCell>
                       <TableCell>{transaction.paymentMethod}</TableCell>
                       <TableCell>
-                        {format(parseISO(transaction.createdAt), 'PPpp')}
+                        {format(parseISO(transaction.createdAt), "PPpp")}
                       </TableCell>
                       <TableCell>
                         <Tooltip title="View Details">
@@ -362,10 +378,16 @@ const AdminPanel = () => {
                             <Visibility />
                           </IconButton>
                         </Tooltip>
-                        {transaction.status === TRANSACTION_STATUS.COMPLETED && (
+                        {transaction.status ===
+                          TRANSACTION_STATUS.COMPLETED && (
                           <Tooltip title="Initiate Refund">
                             <IconButton
-                              onClick={() => handleTransactionAction(transaction.id, 'refund')}
+                              onClick={() =>
+                                handleTransactionAction(
+                                  transaction.id,
+                                  "refund",
+                                )
+                              }
                             >
                               <MonetizationOn color="secondary" />
                             </IconButton>
@@ -373,7 +395,9 @@ const AdminPanel = () => {
                         )}
                         <Tooltip title="Flag Transaction">
                           <IconButton
-                            onClick={() => handleTransactionAction(transaction.id, 'flag')}
+                            onClick={() =>
+                              handleTransactionAction(transaction.id, "flag")
+                            }
                           >
                             <Block color="error" />
                           </IconButton>
@@ -405,7 +429,7 @@ const AdminPanel = () => {
         open={notification.open}
         message={notification.message}
         severity={notification.severity}
-        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        onClose={() => setNotification((prev) => ({ ...prev, open: false }))}
       />
 
       <Dialog

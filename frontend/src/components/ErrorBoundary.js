@@ -1,7 +1,7 @@
 // ErrorBoundary.js
-import React from 'react';
-import PropTypes from 'prop-types';
-import { Alert } from '@mui/material';
+import React from "react";
+import PropTypes from "prop-types";
+import { Alert } from "@mui/material";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -14,7 +14,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error Boundary caught:', error, errorInfo);
+    console.error("Error Boundary caught:", error, errorInfo);
   }
 
   render() {
@@ -23,7 +23,7 @@ class ErrorBoundary extends React.Component {
         <Alert severity="error" sx={{ m: 2 }}>
           Something went wrong. Please try refreshing the page.
           {this.state.error && (
-            <details style={{ marginTop: '1rem', whiteSpace: 'pre-wrap' }}>
+            <details style={{ marginTop: "1rem", whiteSpace: "pre-wrap" }}>
               {this.state.error.toString()}
             </details>
           )}
@@ -36,7 +36,7 @@ class ErrorBoundary extends React.Component {
 }
 
 ErrorBoundary.propTypes = {
-  children: PropTypes.node.isRequired
+  children: PropTypes.node.isRequired,
 };
 
 export default ErrorBoundary;

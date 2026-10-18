@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   Box,
   Typography,
@@ -15,45 +15,62 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
-} from '@mui/material';
-import { Refresh, DateRange, ArrowUpward, ArrowDownward } from '@mui/icons-material';
-import { makeStyles } from '@mui/styles';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, ResponsiveContainer } from 'recharts';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
-import jwtDecode from 'jwt-decode';
-import { DatePicker } from '@mui/x-date-pickers';
-import Notification from './Notification';
-import { TRANSACTION_STATUS, PAYMENT_METHODS, CHART_COLORS } from '../constants';
+  Select,
+} from "@mui/material";
+import {
+  Refresh,
+  DateRange,
+  ArrowUpward,
+  ArrowDownward,
+} from "@mui/icons-material";
+import { makeStyles } from "@mui/styles";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  ResponsiveContainer,
+} from "recharts";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import jwtDecode from "jwt-decode";
+import { DatePicker } from "@mui/x-date-pickers";
+import Notification from "./Notification";
+import {
+  TRANSACTION_STATUS,
+  PAYMENT_METHODS,
+  CHART_COLORS,
+} from "../constants";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     padding: theme.spacing(4),
-    backgroundColor: '#f8fafc',
-    minHeight: '100vh'
+    backgroundColor: "#f8fafc",
+    minHeight: "100vh",
   },
   metricCard: {
     padding: theme.spacing(3),
-    borderRadius: '12px',
-    transition: 'transform 0.3s, box-shadow 0.3s',
-    '&:hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: theme.shadows[4]
-    }
+    borderRadius: "12px",
+    transition: "transform 0.3s, box-shadow 0.3s",
+    "&:hover": {
+      transform: "translateY(-4px)",
+      boxShadow: theme.shadows[4],
+    },
   },
   chartContainer: {
-    height: '400px',
+    height: "400px",
     marginTop: theme.spacing(4),
     padding: theme.spacing(3),
-    backgroundColor: '#ffffff',
-    borderRadius: '12px'
+    backgroundColor: "#ffffff",
+    borderRadius: "12px",
   },
   recentTransactions: {
     marginTop: theme.spacing(4),
     padding: theme.spacing(3),
-    backgroundColor: '#ffffff',
-    borderRadius: '12px'
-  }
+    backgroundColor: "#ffffff",
+    borderRadius: "12px",
+  },
 }));
 
 const Dashboard = () => {
@@ -64,7 +81,7 @@ const Dashboard = () => {
     successfulTransactions: 0,
     failureRate: 0,
     avgProcessingTime: 0,
-    activeDevices: 0
+    activeDevices: 0,
   });
   const [chartData, setChartData] = useState([]);
   const [paymentDistribution, setPaymentDistribution] = useState([]);
@@ -73,61 +90,66 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState({
     start: subDays(new Date(), 7),
-    end: new Date()
+    end: new Date(),
   });
-  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [notification, setNotification] = useState({
+    open: false,
+    message: "",
+    severity: "info",
+  });
 
   const validateAccess = useCallback(() => {
-    const token = localStorage.getItem('paymentPipelineToken');
+    const token = localStorage.getItem("paymentPipelineToken");
     if (!token) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
 
     try {
       const decoded = jwtDecode(token);
-      if (!['admin', 'analyst'].includes(decoded.role)) {
-        navigate('/unauthorized');
+      if (!["admin", "analyst"].includes(decoded.role)) {
+        navigate("/unauthorized");
       }
     } catch (error) {
-      localStorage.removeItem('paymentPipelineToken');
-      navigate('/login');
+      localStorage.removeItem("paymentPipelineToken");
+      navigate("/login");
     }
   }, [navigate]);
 
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const [metricsRes, chartRes, distributionRes, recentRes] = await Promise.all([
-        axios.get('/api/dashboard/metrics', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('paymentPipelineToken')}`
-          },
-          params: {
-            startDate: startOfDay(dateRange.start).toISOString(),
-            endDate: endOfDay(dateRange.end).toISOString()
-          }
-        }),
-        axios.get('/api/dashboard/hourly-transactions', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('paymentPipelineToken')}`
-          },
-          params: {
-            startDate: startOfDay(dateRange.start).toISOString(),
-            endDate: endOfDay(dateRange.end).toISOString()
-          }
-        }),
-        axios.get('/api/dashboard/payment-distribution', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('paymentPipelineToken')}`
-          }
-        }),
-        axios.get('/api/dashboard/recent-transactions', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('paymentPipelineToken')}`
-          }
-        })
-      ]);
+      const [metricsRes, chartRes, distributionRes, recentRes] =
+        await Promise.all([
+          axios.get("/api/dashboard/metrics", {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("paymentPipelineToken")}`,
+            },
+            params: {
+              startDate: startOfDay(dateRange.start).toISOString(),
+              endDate: endOfDay(dateRange.end).toISOString(),
+            },
+          }),
+          axios.get("/api/dashboard/hourly-transactions", {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("paymentPipelineToken")}`,
+            },
+            params: {
+              startDate: startOfDay(dateRange.start).toISOString(),
+              endDate: endOfDay(dateRange.end).toISOString(),
+            },
+          }),
+          axios.get("/api/dashboard/payment-distribution", {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("paymentPipelineToken")}`,
+            },
+          }),
+          axios.get("/api/dashboard/recent-transactions", {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("paymentPipelineToken")}`,
+            },
+          }),
+        ]);
 
       setMetrics(metricsRes.data);
       setChartData(chartRes.data);
@@ -135,11 +157,11 @@ const Dashboard = () => {
       setRecentTransactions(recentRes.data.transactions);
       setError(null);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load dashboard data');
+      setError(err.response?.data?.message || "Failed to load dashboard data");
       setNotification({
         open: true,
-        message: err.response?.data?.message || 'Dashboard load failed',
-        severity: 'error'
+        message: err.response?.data?.message || "Dashboard load failed",
+        severity: "error",
       });
     } finally {
       setLoading(false);
@@ -152,9 +174,9 @@ const Dashboard = () => {
   }, [validateAccess, fetchDashboardData]);
 
   const handleDateChange = (date, type) => {
-    setDateRange(prev => ({
+    setDateRange((prev) => ({
       ...prev,
-      [type]: date
+      [type]: date,
     }));
   };
 
@@ -165,11 +187,20 @@ const Dashboard = () => {
       </Typography>
       <Box display="flex" alignItems="center">
         <Typography variant="h4" component="div">
-          {typeof value === 'number' ? value.toLocaleString() : value}
+          {typeof value === "number" ? value.toLocaleString() : value}
         </Typography>
         {trend && (
-          <Box ml={1} display="flex" alignItems="center" color={trend > 0 ? '#4caf50' : '#f44336'}>
-            {trend > 0 ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />}
+          <Box
+            ml={1}
+            display="flex"
+            alignItems="center"
+            color={trend > 0 ? "#4caf50" : "#f44336"}
+          >
+            {trend > 0 ? (
+              <ArrowUpward fontSize="small" />
+            ) : (
+              <ArrowDownward fontSize="small" />
+            )}
             <Typography variant="body2" style={{ marginLeft: 4 }}>
               {Math.abs(trend)}%
             </Typography>
@@ -187,18 +218,23 @@ const Dashboard = () => {
   return (
     <div className={classes.root}>
       <Container maxWidth="xl">
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={4}
+        >
           <Typography variant="h4" component="h1">
             Payment Analytics Dashboard
           </Typography>
           <Box display="flex" alignItems="center">
-            <FormControl variant="outlined" size="small" sx={{ minWidth: 120, mr: 2 }}>
+            <FormControl
+              variant="outlined"
+              size="small"
+              sx={{ minWidth: 120, mr: 2 }}
+            >
               <InputLabel>Date Range</InputLabel>
-              <Select
-                value="custom"
-                label="Date Range"
-                onChange={() => {}}
-              >
+              <Select value="custom" label="Date Range" onChange={() => {}}>
                 <MenuItem value="24h">Last 24 hours</MenuItem>
                 <MenuItem value="7d">Last 7 days</MenuItem>
                 <MenuItem value="30d">Last 30 days</MenuItem>
@@ -208,16 +244,28 @@ const Dashboard = () => {
             <DatePicker
               label="Start Date"
               value={dateRange.start}
-              onChange={(date) => handleDateChange(date, 'start')}
+              onChange={(date) => handleDateChange(date, "start")}
               maxDate={dateRange.end}
-              renderInput={(params) => <TextField {...params} size="small" sx={{ width: 150, mr: 2 }} />}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  size="small"
+                  sx={{ width: 150, mr: 2 }}
+                />
+              )}
             />
             <DatePicker
               label="End Date"
               value={dateRange.end}
-              onChange={(date) => handleDateChange(date, 'end')}
+              onChange={(date) => handleDateChange(date, "end")}
               minDate={dateRange.start}
-              renderInput={(params) => <TextField {...params} size="small" sx={{ width: 150, mr: 2 }} />}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  size="small"
+                  sx={{ width: 150, mr: 2 }}
+                />
+              )}
             />
             <IconButton onClick={fetchDashboardData} color="primary">
               <Refresh />
@@ -325,30 +373,37 @@ const Dashboard = () => {
               <Grid container spacing={2}>
                 {recentTransactions.map((transaction) => (
                   <Grid item xs={12} key={transaction.id}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
                       <Box>
                         <Typography variant="body2">
                           {transaction.merchant}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          {format(new Date(transaction.timestamp), 'PPpp')}
+                          {format(new Date(transaction.timestamp), "PPpp")}
                         </Typography>
                       </Box>
                       <Box textAlign="right">
                         <Typography variant="body2">
-                          {new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: transaction.currency
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: transaction.currency,
                           }).format(transaction.amount)}
                         </Typography>
                         <Typography
                           variant="caption"
                           style={{
-                            color: transaction.status === TRANSACTION_STATUS.COMPLETED
-                              ? '#4caf50'
-                              : transaction.status === TRANSACTION_STATUS.FAILED
-                              ? '#f44336'
-                              : '#ff9800'
+                            color:
+                              transaction.status ===
+                              TRANSACTION_STATUS.COMPLETED
+                                ? "#4caf50"
+                                : transaction.status ===
+                                    TRANSACTION_STATUS.FAILED
+                                  ? "#f44336"
+                                  : "#ff9800",
                           }}
                         >
                           {transaction.status}
@@ -368,7 +423,7 @@ const Dashboard = () => {
         open={notification.open}
         message={notification.message}
         severity={notification.severity}
-        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        onClose={() => setNotification((prev) => ({ ...prev, open: false }))}
       />
     </div>
   );
