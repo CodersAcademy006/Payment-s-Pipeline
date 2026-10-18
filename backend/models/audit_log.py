@@ -4,34 +4,36 @@ Provides comprehensive auditing capabilities for financial transactions
 """
 
 import logging
-from datetime import datetime
+import uuid
 from enum import Enum
-from typing import Any, Optional, Dict
+from typing import Any, Optional
 
 from sqlalchemy import (
-    Column,
-    String,
-    DateTime,
-    Text,
     JSON,
-    Enum as SQLAlchemyEnum,
-    Index,
+    Column,
+    DateTime,
     ForeignKey,
-    DDL,
-    event
+    Index,
+    String,
+    Text,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy import (
+    Enum as SQLAlchemyEnum,
+)
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import scoped_session
+
+from backend import db, utcnow
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("audit_log")
 
-Base = declarative_base()
 
 class AuditActionType(Enum):
     """Enumeration of auditable actions in the payment system"""
+
     CREATE = "CREATE"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
@@ -43,41 +45,42 @@ class AuditActionType(Enum):
     RETRY = "RETRY"
     ESCALATE = "ESCALATE"
 
+
 class AuditStatus(Enum):
     """Status of the audited operation"""
+
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     PENDING = "PENDING"
     WARNING = "WARNING"
 
-class AuditLog(Base):
+
+class AuditLog(db.Model):
     """
     Central audit logging entity for payment pipeline operations
     Implements optimized query patterns and data integrity constraints
     """
-    __tablename__ = 'audit_logs'
+
+    __tablename__ = "audit_logs"
     __table_args__ = (
-        Index('ix_audit_entity_composite', 'entity_type', 'entity_id'),
-        Index('ix_audit_timestamp_user', 'timestamp', 'user_id'),
-        Index('ix_audit_action_status', 'action_type', 'status'),
-        {
-            'postgresql_partition_by': 'RANGE (timestamp)',
-            'listeners': [('after_create', DDL(
-                "CREATE INDEX IF NOT EXISTS ix_audit_timestamp ON audit_logs (timestamp)"))]
-        }
+        Index("ix_audit_entity_composite", "entity_type", "entity_id"),
+        Index("ix_audit_timestamp_user", "timestamp", "user_id"),
+        Index("ix_audit_action_status", "action_type", "status"),
     )
 
-    id = Column(String(36), primary_key=True, comment='UUID primary key')
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    user_id = Column(String(36), ForeignKey('users.id'), nullable=False, index=True)
+    id = Column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4()), comment="UUID primary key"
+    )
+    timestamp = Column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     action_type = Column(SQLAlchemyEnum(AuditActionType), nullable=False)
-    entity_type = Column(String(50), nullable=False, comment='Payment, Transaction, etc.')
+    entity_type = Column(String(50), nullable=False, comment="Payment, Transaction, etc.")
     entity_id = Column(String(36), nullable=False, index=True)
     status = Column(SQLAlchemyEnum(AuditStatus), nullable=False)
-    ip_address = Column(String(45), comment='Supports IPv6 addresses')
+    ip_address = Column(String(45), comment="Supports IPv6 addresses")
     user_agent = Column(Text)
-    details = Column(JSON, comment='Structured JSON details of the audit event')
-    error_details = Column(JSON, comment='Error context if operation failed')
+    details = Column(JSON, comment="Structured JSON details of the audit event")
+    error_details = Column(JSON, comment="Error context if operation failed")
 
     def __repr__(self):
         return f"<AuditLog {self.timestamp} {self.action_type} {self.entity_type} {self.entity_id}>"
@@ -91,14 +94,14 @@ class AuditLog(Base):
         entity_type: str,
         entity_id: str,
         status: AuditStatus,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
-        error_details: Optional[Dict[str, Any]] = None
-    ) -> Optional['AuditLog']:
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        details: dict[str, Any] | None = None,
+        error_details: dict[str, Any] | None = None,
+    ) -> Optional["AuditLog"]:
         """
         Safely create an audit log entry with error handling and transaction management
-        
+
         Args:
             session: SQLAlchemy scoped session
             user_id: ID of the user initiating the action
@@ -110,7 +113,7 @@ class AuditLog(Base):
             user_agent: Client user agent string
             details: Structured operation details
             error_details: Error context if applicable
-            
+
         Returns:
             AuditLog instance if created successfully, None otherwise
         """
@@ -124,37 +127,27 @@ class AuditLog(Base):
                 ip_address=ip_address,
                 user_agent=user_agent,
                 details=details or {},
-                error_details=error_details or {}
+                error_details=error_details or {},
             )
-            
+
             session.add(audit_log)
             session.flush()  # Flush to generate ID but don't commit yet
             return audit_log
-            
+
         except SQLAlchemyError as e:
-            logger.error(f"Audit log creation failed: {str(e)}", exc_info=True)
+            logger.error(f"Audit log creation failed: {e!s}", exc_info=True)
             session.rollback()
             raise  # Re-raise for upstream error handling
         except Exception as e:
-            logger.critical(f"Unexpected audit log error: {str(e)}", exc_info=True)
+            logger.critical(f"Unexpected audit log error: {e!s}", exc_info=True)
             session.rollback()
             raise
 
-# Event listeners for partition management in PostgreSQL
-@event.listens_for(AuditLog.__table__, 'after_create')
-def create_partitions(target, connection, **kw):
-    """Create monthly partitions for audit logs"""
-    connection.execute(DDL("""
-        CREATE TABLE IF NOT EXISTS audit_logs_y2023m11 PARTITION OF audit_logs
-        FOR VALUES FROM ('2023-11-01') TO ('2023-12-01');
-        
-        CREATE TABLE IF NOT EXISTS audit_logs_default PARTITION OF audit_logs DEFAULT;
-    """))
 
 # Example usage:
 # from database.engine import engine
 # Session = scoped_session(sessionmaker(bind=engine))
-# 
+#
 # AuditLog.create_audit_log(
 #     session=Session(),
 #     user_id="user_123",
@@ -198,4 +191,4 @@ Security Considerations:
 - GDPR-compliant data retention policies
 - Encryption-at-rest for sensitive audit trails
 - Role-based access control implementation
-""" 
+"""
