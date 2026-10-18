@@ -1,12 +1,12 @@
 // transactionsSlice.js
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice } from "@reduxjs/toolkit";
 
 const transactionsSlice = createSlice({
-  name: 'transactions',
+  name: "transactions",
   initialState: {
     data: [],
     loading: false,
-    error: null
+    error: null,
   },
   reducers: {
     fetchTransactionsStart(state) {
@@ -21,8 +21,8 @@ const transactionsSlice = createSlice({
     fetchTransactionsFailure(state, action) {
       state.loading = false;
       state.error = action.payload;
-    }
-  }
+    },
+  },
 });
 
 export const { actions } = transactionsSlice;

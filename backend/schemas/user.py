@@ -3,83 +3,78 @@ User Schema Module for Payment Pipeline System
 Defines Pydantic schemas, security utilities, and validation logic
 """
 
-from datetime import datetime
-from typing import Optional, List
 import re
-from pydantic import BaseModel, EmailStr, Field, validator, root_validator
 import secrets
-from passlib.context import CryptContext
+from datetime import datetime
 
-# Password context configuration
-PWD_CONTEXT = CryptContext(
-    schemes=["bcrypt", "argon2"],
-    deprecated="auto",
-    bcrypt__rounds=14,
-    argon2__time_cost=3,
-    argon2__memory_cost=65536,
-    argon2__parallelism=4,
-    argon2__hash_len=32
-)
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 # Constants
 USERNAME_REGEX = re.compile(r"^[a-zA-Z0-9_\-.]{3,50}$")
 PASSWORD_MIN_LENGTH = 12
 ALLOWED_EMAIL_DOMAINS = {"example.com", "yourcompany.com"}  # Add production domains
 
+
 class UserBase(BaseModel):
     """Base user schema with common attributes"""
-    username: str = Field(...,
+
+    username: str = Field(
+        ...,
         min_length=3,
         max_length=50,
-        example="secure_user123",
-        description="Unique username containing letters, numbers, and allowed symbols (_-.)"
+        examples=["secure_user123"],
+        description="Unique username containing letters, numbers, and allowed symbols (_-.)",
     )
-    email: EmailStr = Field(...,
-        example="user@yourcompany.com",
-        description="Valid corporate email address"
+    email: EmailStr = Field(
+        ..., examples=["user@yourcompany.com"], description="Valid corporate email address"
     )
 
-    @validator('username')
+    @field_validator("username")
+    @classmethod
     def validate_username_format(cls, value):
         """Validate username format using regex"""
         if not USERNAME_REGEX.match(value):
             raise ValueError(
-                "Username must be 3-50 characters containing only: "
-                "a-z, A-Z, 0-9, '_', '-', '.'"
+                "Username must be 3-50 characters containing only: a-z, A-Z, 0-9, '_', '-', '.'"
             )
         return value.lower()
 
-    @validator('email')
+    @field_validator("email")
+    @classmethod
     def validate_email_domain(cls, value):
         """Validate corporate email domain (remove in production if not needed)"""
         if not value.endswith(tuple(ALLOWED_EMAIL_DOMAINS)):
             raise ValueError("Invalid email domain. Use corporate email.")
         return value.lower()
 
+
 class UserCreate(UserBase):
     """User creation schema with password validation"""
-    password: str = Field(...,
+
+    password: str = Field(
+        ...,
         min_length=PASSWORD_MIN_LENGTH,
-        example="Strong!PassPhrase1234",
-        description=f"Minimum {PASSWORD_MIN_LENGTH} chars with uppercase, lowercase, number, and special character"
+        examples=["Strong!PassPhrase1234"],
+        description=(
+            f"Minimum {PASSWORD_MIN_LENGTH} chars with uppercase, lowercase, number, "
+            "and special character"
+        ),
     )
-    password_confirmation: str = Field(..., example="Strong!PassPhrase1234")
+    password_confirmation: str = Field(..., examples=["Strong!PassPhrase1234"])
 
-    @root_validator
-    def validate_passwords_match(cls, values):
+    @model_validator(mode="after")
+    def validate_passwords_match(self):
         """Ensure password and confirmation match"""
-        password = values.get('password')
-        password_confirmation = values.get('password_confirmation')
-        
-        if password != password_confirmation:
+        if self.password != self.password_confirmation:
             raise ValueError("Passwords do not match")
-        return values
+        return self
 
-    @validator('password')
+    @field_validator("password")
+    @classmethod
     def validate_password_complexity(cls, value):
         """Enforce strong password requirements"""
         errors = []
-        
+
         if len(value) < PASSWORD_MIN_LENGTH:
             errors.append(f"Minimum {PASSWORD_MIN_LENGTH} characters")
         if not re.search(r"[A-Z]", value):
@@ -92,37 +87,36 @@ class UserCreate(UserBase):
             errors.append("At least one special character")
         if re.search(r"(.)\1{3,}", value):
             errors.append("No repeated characters (4+ times)")
-            
+
         if errors:
             raise ValueError("Password requirements failed: " + ", ".join(errors))
         return value
 
+
 class UserUpdate(BaseModel):
     """User update schema with optional fields"""
-    username: Optional[str] = Field(None,
-        min_length=3,
-        max_length=50,
-        example="new_secure_user123"
+
+    username: str | None = Field(None, min_length=3, max_length=50, examples=["new_secure_user123"])
+    email: EmailStr | None = Field(None, examples=["new.user@yourcompany.com"])
+    password: str | None = Field(
+        None, min_length=PASSWORD_MIN_LENGTH, examples=["NewStrong!PassPhrase1234"]
     )
-    email: Optional[EmailStr] = Field(None, example="new.user@yourcompany.com")
-    password: Optional[str] = Field(None,
-        min_length=PASSWORD_MIN_LENGTH,
-        example="NewStrong!PassPhrase1234"
-    )
+
 
 class UserResponse(UserBase):
     """User response schema (public-facing)"""
+
     id: str
     is_active: bool
     is_verified: bool
-    roles: List[str]
+    roles: list[str]
     created_at: datetime
     updated_at: datetime
-    last_login: Optional[datetime]
+    last_login: datetime | None
 
-    class Config:
-        orm_mode = True
-        schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "username": "secure_user123",
@@ -132,51 +126,52 @@ class UserResponse(UserBase):
                 "roles": ["user"],
                 "created_at": "2023-01-01T00:00:00Z",
                 "updated_at": "2023-01-01T00:00:00Z",
-                "last_login": "2023-01-01T00:00:00Z"
+                "last_login": "2023-01-01T00:00:00Z",
             }
-        }
+        },
+    )
+
 
 class UserInDB(UserResponse):
     """Internal user schema with sensitive data"""
+
     hashed_password: str
-    verification_token: Optional[str]
-    password_reset_token: Optional[str]
+    verification_token: str | None
+    password_reset_token: str | None
     failed_login_attempts: int = 0
-    totp_secret: Optional[str]
+    totp_secret: str | None
     mfa_enabled: bool = False
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 class UserLogin(BaseModel):
     """User login schema"""
-    username_or_email: str = Field(..., example="secure_user123 or user@yourcompany.com")
-    password: str = Field(..., example="Strong!PassPhrase1234")
-    mfa_code: Optional[str] = Field(None, example="123456")
+
+    username_or_email: str = Field(..., examples=["secure_user123 or user@yourcompany.com"])
+    password: str = Field(..., examples=["Strong!PassPhrase1234"])
+    mfa_code: str | None = Field(None, examples=["123456"])
+
 
 class PasswordResetRequest(BaseModel):
     """Password reset request schema"""
-    email: EmailStr = Field(..., example="user@yourcompany.com")
+
+    email: EmailStr = Field(..., examples=["user@yourcompany.com"])
+
 
 class PasswordResetConfirm(BaseModel):
     """Password reset confirmation schema"""
+
     reset_token: str = Field(...)
-    new_password: str = Field(...,
-        min_length=PASSWORD_MIN_LENGTH,
-        example="NewStrong!PassPhrase1234"
+    new_password: str = Field(
+        ..., min_length=PASSWORD_MIN_LENGTH, examples=["NewStrong!PassPhrase1234"]
     )
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against hashed version"""
-    return PWD_CONTEXT.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    """Generate secure password hash"""
-    return PWD_CONTEXT.hash(password)
 
 def generate_password_reset_token() -> str:
     """Generate secure password reset token"""
     return secrets.token_urlsafe(64)
+
 
 def validate_password_strength(password: str) -> None:
     """Reusable password validation function"""
